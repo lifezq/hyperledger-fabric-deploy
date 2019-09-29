@@ -1,0 +1,12 @@
+.vscode
+chaincode/chaincode_example02/java/.classpath
+chaincode/chaincode_example02/java/.gradle/
+chaincode/chaincode_example02/java/.project
+chaincode/chaincode_example02/java/.settings/
+chaincode/chaincode_example02/java/bin/
+base/docker-compose-peer.yaml
+base/orderer-base.yaml
+configtx.yaml
+crypto-config.yaml
+docker-compose-couch.yaml
+docker-compose-peer.yaml
