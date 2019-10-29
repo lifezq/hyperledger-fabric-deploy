@@ -22,13 +22,12 @@ function printHelp() {
   echo "  cli.sh [options] <host>      <add|del|ls>          [host:ip]   \"Operate cli host map, including add/del/ls\""
   echo "Options:"
   echo "    -b <endorser> - specify an endorsement strategy (defaults to \"OR (Org{1,2,3}MSP)\")"
-  echo "    -c <channel name> - channel name to use (defaults to \"mychannel\")"
+  echo "    -c <channel name> - channel name to use (defaults to \"test\")"
   echo "    -t <timeout> - CLI timeout duration in seconds (defaults to 10)"
   echo "    -d <delay> - delay duration in seconds (defaults to 3)"
-  echo "    -f <docker-compose-file> - specify which docker-compose file use (defaults to docker-compose-cli.yaml)"
   echo "    -s <dbtype> - the database backend to use: goleveldb or couchdb (default) "
   echo "    -l <language> - the chaincode language: golang (default) or node"
-  echo "    -m <chaincode name> - the chaincode name: mycc (default)"
+  echo "    -m <chaincode name> - the chaincode name: testcc (default)"
   echo "    -r <chaincode version> - the chaincode version: 1.0 (default)"
   echo "    -p <chaincode path> - the chaincode path: github.com/chaincode/chaincode_example02/go/ (default)"
   echo "    -g <chaincode init args> - the chaincode init args: {\"Args\":[\"init\",\"a\",\"100\",\"b\",\"200\"]} (default)"
@@ -60,10 +59,8 @@ CLI_TIMEOUT=2
 CLI_DELAY=1
 # system channel name defaults to "test-sys-channel"
 SYS_CHANNEL="test-sys-channel"
-# channel name defaults to "mychannel"
-CHANNEL_NAME="mychannel"
-# use this as the default docker-compose yaml definition
-COMPOSE_FILE=docker-compose-cli.yaml
+# channel name defaults to "test"
+CHANNEL_NAME="test"
 #
 COMPOSE_FILE_COUCH=docker-compose-couch.yaml
 # org3 docker compose file
@@ -77,7 +74,7 @@ COMPOSE_FILE_CA=docker-compose-ca.yaml
 # use golang as the default language for chaincode
 LANGUAGE=golang
 # default chain name set
-CHAIN_NAME="mycc"
+CHAIN_NAME="testcc"
 # default chain version set
 CHAIN_VERSION=1.0
 # default chain path set
@@ -103,7 +100,7 @@ CORE_PEER_TLS_ENABLED=true
 source .env
 source generate.lock
 shiftcc=0
-while getopts "h?b:c:t:d:f:s:l:m:r:p:g:i:u:o:av" opt; do
+while getopts "h?b:c:t:d:s:l:m:r:p:g:i:u:o:av" opt; do
   case "$opt" in
   h | \?)
     printHelp
@@ -123,10 +120,6 @@ while getopts "h?b:c:t:d:f:s:l:m:r:p:g:i:u:o:av" opt; do
     ;;
   d)
     CLI_DELAY=$OPTARG
-    let  shiftcc+=2
-    ;;
-  f)
-    COMPOSE_FILE=$OPTARG
     let  shiftcc+=2
     ;;
   s)
@@ -225,16 +218,16 @@ function fabric(){
 		kid=1
 		for ip in $kafka_ip;
 		do
-			sed -i "/      - \"zookeeper$kid.test.com/d" $COMPOSE_FILE_KAFKA
-			sed -i "/      - \"kafka$kid.test.com/d" $COMPOSE_FILE_KAFKA
-			sed -i "/      - \"kafka$kid.test.com/d" $COMPOSE_FILE_ORDERER
-			sed -i "39a\      - \"zookeeper$kid.test.com:$ip\"" $COMPOSE_FILE_KAFKA
-			echo "      - \"zookeeper$kid.test.com:$ip\"">>$COMPOSE_FILE_KAFKA
-			echo "      - \"kafka$kid.test.com:$ip\"">>$COMPOSE_FILE_KAFKA
-			echo "      - \"kafka$kid.test.com:$ip\"">>$COMPOSE_FILE_ORDERER
+			sed -i "/      - \"zookeeper$kid.${DOMAIN_NAME}/d" $COMPOSE_FILE_KAFKA
+			sed -i "/      - \"kafka$kid.${DOMAIN_NAME}/d" $COMPOSE_FILE_KAFKA
+			sed -i "/      - \"kafka$kid.${DOMAIN_NAME}/d" $COMPOSE_FILE_ORDERER
+			sed -i "39a\      - \"zookeeper$kid.${DOMAIN_NAME}:$ip\"" $COMPOSE_FILE_KAFKA
+			echo "      - \"zookeeper$kid.${DOMAIN_NAME}:$ip\"">>$COMPOSE_FILE_KAFKA
+			echo "      - \"kafka$kid.${DOMAIN_NAME}:$ip\"">>$COMPOSE_FILE_KAFKA
+			echo "      - \"kafka$kid.${DOMAIN_NAME}:$ip\"">>$COMPOSE_FILE_ORDERER
 			set -x
-			./cli.sh host add zookeeper$kid.test.com:$ip false >&/dev/null
-			./cli.sh host add kafka$kid.test.com:$ip false >&/dev/null
+			./cli.sh host add zookeeper$kid.${DOMAIN_NAME}:$ip false >&/dev/null
+			./cli.sh host add kafka$kid.${DOMAIN_NAME}:$ip false >&/dev/null
 			set +x
 			let kid+=1
 		done
@@ -242,10 +235,10 @@ function fabric(){
 		kid=1
 		for ip in $orderer_ip;
 		do
-			sed -i "/      - \"orderer$kid.test.com/d" $COMPOSE_FILE_ORDERER
-			echo "      - \"orderer$kid.test.com:$ip\"">>$COMPOSE_FILE_ORDERER
+			sed -i "/      - \"orderer$kid.${DOMAIN_NAME}/d" $COMPOSE_FILE_ORDERER
+			echo "      - \"orderer$kid.${DOMAIN_NAME}:$ip\"">>$COMPOSE_FILE_ORDERER
 			set -x
-			./cli.sh host add orderer$kid.test.com:$ip false >&/dev/null
+			./cli.sh host add orderer$kid.${DOMAIN_NAME}:$ip false >&/dev/null
 			set +x
 			let kid+=1
 		done
@@ -256,7 +249,7 @@ function fabric(){
 			for((i=0;i<$PER_ORG_NODE_COUNT;i++));
     		do
 				set -x
-    		./cli.sh host add peer$i.org$kid.test.com:$ip false >&/dev/null
+    		./cli.sh host add peer$i.org$kid.${DOMAIN_NAME}:$ip false >&/dev/null
 				set +x
     		done
 			let kid+=1
@@ -523,8 +516,8 @@ function kafka(){
     KAFKA_ZOOKEEPER_CONNECT=""
     for((i=1;i<=$KAFKA_NUMBER;i++));
     do
-        ZOO_SERVERS+="server.$i=zookeeper$i.test.com:2888:3888 "
-        KAFKA_ZOOKEEPER_CONNECT+="zookeeper$i.test.com:2181,"
+        ZOO_SERVERS+="server.$i=zookeeper$i.${DOMAIN_NAME}:2888:3888 "
+        KAFKA_ZOOKEEPER_CONNECT+="zookeeper$i.${DOMAIN_NAME}:2181,"
     done
 
     sed -i "s/ZOO_MY_ID=[0-9]\{1,10\}/ZOO_MY_ID=$KAFKA_ID/g" $KAFKA_DOCKER_FILE
@@ -532,7 +525,7 @@ function kafka(){
     sed -i "s/ kafka[0-9]\{1,10\}/ kafka$KAFKA_ID/g" $KAFKA_DOCKER_FILE
     sed -i "s/chaincode\/kafka[0-9]\{1,10\}/chaincode\/kafka$KAFKA_ID/g" $KAFKA_DOCKER_FILE
     # sed -i "s/- 8[0-9]\{1,10\}:[0-9]\{1,10\}/- $KAFKA_PORT:$KAFKA_PORT/g" $KAFKA_DOCKER_FILE
-    sed -i "s/\/\/kafka[0-9]\{1,10\}.test.com/\/\/kafka$KAFKA_ID.test.com/g" $KAFKA_DOCKER_FILE
+    sed -i "s/\/\/kafka[0-9]\{1,10\}.${DOMAIN_NAME}/\/\/kafka$KAFKA_ID.${DOMAIN_NAME}/g" $KAFKA_DOCKER_FILE
     # sed -i "s/OUTSIDE:\/\/:[0-9]\{1,10\}/OUTSIDE:\/\/:$KAFKA_PORT/g" $KAFKA_DOCKER_FILE
     sed -i "s/ zookeeper[0-9]\{1,10\}/ zookeeper$KAFKA_ID/g" $KAFKA_DOCKER_FILE
     sed -i "s/chaincode\/zookeeper[0-9]\{1,10\}/chaincode\/zookeeper$KAFKA_ID/g" $KAFKA_DOCKER_FILE
@@ -607,7 +600,7 @@ function orderer(){
       if [ -z "$ipex" ];then
           ssh-copy-id $USER_HOSTNAME >&/dev/null
           if [ "$DO" == "up" ];then
-              ssh $USER_HOSTNAME "mkdir -p ~/$APP_NAME/base && mkdir -p ~/$APP_NAME/channel-artifacts &&  mkdir -p ~/$APP_NAME/crypto-config/ordererOrganizations/test.com/orderers"
+              ssh $USER_HOSTNAME "mkdir -p ~/$APP_NAME/base && mkdir -p ~/$APP_NAME/channel-artifacts &&  mkdir -p ~/$APP_NAME/crypto-config/ordererOrganizations/${DOMAIN_NAME}/orderers"
               SSDOCKER=`ssh $USER_HOSTNAME "ls ~/$APP_NAME|grep $DOCKER_TARNAME"`
               if [ -z "$SSDOCKER" ];then
                   scp $DOCKER_TARNAME $USER_HOSTNAME:~/$APP_NAME/
@@ -630,7 +623,7 @@ function orderer(){
               scp -r $ORDERER_BASE_DOCKER_FILE $USER_HOSTNAME:~/$APP_NAME/base/
               scp -r $ORDERER_DOCKER_FILE $USER_HOSTNAME:~/$APP_NAME/
               scp -r channel-artifacts/genesis.block $USER_HOSTNAME:~/$APP_NAME/channel-artifacts/
-              scp -r crypto-config/ordererOrganizations/test.com/orderers/orderer$ORDERER_ID.test.com $USER_HOSTNAME:~/$APP_NAME/crypto-config/ordererOrganizations/test.com/orderers/
+              scp -r crypto-config/ordererOrganizations/${DOMAIN_NAME}/orderers/orderer$ORDERER_ID.${DOMAIN_NAME} $USER_HOSTNAME:~/$APP_NAME/crypto-config/ordererOrganizations/${DOMAIN_NAME}/orderers/
               scp ".env" $USER_HOSTNAME:~/$APP_NAME/
               scp "generate.lock" $USER_HOSTNAME:~/$APP_NAME/
               scp "cli.sh" $USER_HOSTNAME:~/$APP_NAME/
@@ -655,7 +648,7 @@ function orderer(){
         KAFKA_PORT=8061
         for((i=1;i<=$KAFKA_NUMBER;i++));
         do
-            ORDERER_KAFKA_BROKERS+="kafka$i.test.com:$KAFKA_PORT,"
+            ORDERER_KAFKA_BROKERS+="kafka$i.${DOMAIN_NAME}:$KAFKA_PORT,"
             let KAFKA_PORT+=1
         done
 
@@ -694,7 +687,7 @@ function orderer(){
         docker ps -a|grep "orderer"$ORDERER_ID|awk '{print $1}'|xargs docker rm -f
         docker volume ls|grep orderer$ORDERER_ID|awk '{print $2}'|xargs docker volume rm -f
     fi
-    rm -rf ./chaincode/orderer/orderer$ORDERER_ID.test.com
+    rm -rf ./chaincode/orderer/orderer$ORDERER_ID.${DOMAIN_NAME}
     ;;
   *)
       echo "Command not found"
@@ -737,7 +730,7 @@ function node(){
       if [ -z "$ipex" ];then
           ssh-copy-id $USER_HOSTNAME >&/dev/null
           if [ "$DO" == "up" ];then
-              ssh $USER_HOSTNAME "mkdir -p ~/$APP_NAME/base && mkdir -p ~/$APP_NAME/crypto-config/peerOrganizations/org$ORG_ID.test.com/peers"
+              ssh $USER_HOSTNAME "mkdir -p ~/$APP_NAME/base && mkdir -p ~/$APP_NAME/crypto-config/peerOrganizations/org$ORG_ID.${DOMAIN_NAME}/peers"
               SSDOCKER=`ssh $USER_HOSTNAME "ls ~/$APP_NAME|grep $DOCKER_TARNAME"`
               if [ -z "$SSDOCKER" ];then
                   scp $DOCKER_TARNAME $USER_HOSTNAME:~/$APP_NAME/
@@ -762,7 +755,7 @@ function node(){
               scp -r $PEER_DOCKER_FILE $USER_HOSTNAME:~/$APP_NAME/
               scp -r $ORDERER_DOCKER_FILE $USER_HOSTNAME:~/$APP_NAME/
               scp -r $BASE_PEER_DOCKER_FILE $USER_HOSTNAME:~/$APP_NAME/base/
-              scp -r crypto-config/peerOrganizations/org$ORG_ID.test.com/peers/* $USER_HOSTNAME:~/$APP_NAME/crypto-config/peerOrganizations/org$ORG_ID.test.com/peers/
+              scp -r crypto-config/peerOrganizations/org$ORG_ID.${DOMAIN_NAME}/peers/* $USER_HOSTNAME:~/$APP_NAME/crypto-config/peerOrganizations/org$ORG_ID.${DOMAIN_NAME}/peers/
               scp ".env" $USER_HOSTNAME:~/$APP_NAME/
               scp "generate.lock" $USER_HOSTNAME:~/$APP_NAME/
               scp "cli.sh" $USER_HOSTNAME:~/$APP_NAME/
@@ -789,7 +782,7 @@ function node(){
     sleep 2
     for((i=0;i<$PER_ORG_NODE_COUNT;i++));
     do
-        docker cp peer$i.org$ORG_ID.test.com:/etc/hosts ./hosts_peer$i.org$ORG_ID.test.com
+        docker cp peer$i.org$ORG_ID.${DOMAIN_NAME}:/etc/hosts ./hosts_peer$i.org$ORG_ID.${DOMAIN_NAME}
     done
     ORDERERS=`sed -n '/"orderer.*/p' $ORDERER_DOCKER_FILE`
     
@@ -801,23 +794,23 @@ function node(){
           if [ $o != "-" ]; then
             oo=${o//\"/}
             oo=(${oo//:/ })
-            sed -i "/${oo[0]}/d" ./hosts_peer$i.org$ORG_ID.test.com
-            echo ${oo[1]}" "${oo[0]} >>./hosts_peer$i.org$ORG_ID.test.com
+            sed -i "/${oo[0]}/d" ./hosts_peer$i.org$ORG_ID.${DOMAIN_NAME}
+            echo ${oo[1]}" "${oo[0]} >>./hosts_peer$i.org$ORG_ID.${DOMAIN_NAME}
           fi 
         done
 
         for h in $HOSTS;
             do
             h=(${h//:/ })
-            sed -i "/${h[0]}/d" ./hosts_peer$i.org$ORG_ID.test.com
-            echo ${h[1]}" "${h[0]} >>./hosts_peer$i.org$ORG_ID.test.com
+            sed -i "/${h[0]}/d" ./hosts_peer$i.org$ORG_ID.${DOMAIN_NAME}
+            echo ${h[1]}" "${h[0]} >>./hosts_peer$i.org$ORG_ID.${DOMAIN_NAME}
         done
     done
 
     for((i=0;i<$PER_ORG_NODE_COUNT;i++));
     do
-        docker cp ./hosts_peer$i.org$ORG_ID.test.com peer$i.org$ORG_ID.test.com:/etc/hosts.new
-        docker exec peer$i.org$ORG_ID.test.com cp /etc/hosts.new /etc/hosts
+        docker cp ./hosts_peer$i.org$ORG_ID.${DOMAIN_NAME} peer$i.org$ORG_ID.${DOMAIN_NAME}:/etc/hosts.new
+        docker exec peer$i.org$ORG_ID.${DOMAIN_NAME} cp /etc/hosts.new /etc/hosts
     done
     rm -f ./hosts_peer*
     ;;
@@ -851,12 +844,12 @@ function node(){
             docker volume ls|grep couchdb${i}$ORG_ID|awk '{print $2}'|xargs docker volume rm -f >&/dev/null
         fi
     done
-    rm -rf chaincode/peer/*org$ORG_ID.test.com
+    rm -rf chaincode/peer/*org$ORG_ID.${DOMAIN_NAME}
     ;;
   reload)
     for((i=0;i<$PER_ORG_NODE_COUNT;i++));
     do
-        docker cp peer$i.org$ORG_ID.test.com:/etc/hosts ./hosts_peer$i.org$ORG_ID.test.com
+        docker cp peer$i.org$ORG_ID.${DOMAIN_NAME}:/etc/hosts ./hosts_peer$i.org$ORG_ID.${DOMAIN_NAME}
     done
 
     HOSTS=`cat base/.hosts`
@@ -865,11 +858,11 @@ function node(){
         for h in $HOSTS;
             do
             h=(${h//:/ })
-            sed -i "/${h[0]}/d" ./hosts_peer$i.org$ORG_ID.test.com
-            echo ${h[1]}" "${h[0]} >>./hosts_peer$i.org$ORG_ID.test.com
+            sed -i "/${h[0]}/d" ./hosts_peer$i.org$ORG_ID.${DOMAIN_NAME}
+            echo ${h[1]}" "${h[0]} >>./hosts_peer$i.org$ORG_ID.${DOMAIN_NAME}
         done
-        docker cp ./hosts_peer$i.org$ORG_ID.test.com peer$i.org$ORG_ID.test.com:/etc/hosts.new
-        docker exec peer$i.org$ORG_ID.test.com cp /etc/hosts.new /etc/hosts
+        docker cp ./hosts_peer$i.org$ORG_ID.${DOMAIN_NAME} peer$i.org$ORG_ID.${DOMAIN_NAME}:/etc/hosts.new
+        docker exec peer$i.org$ORG_ID.${DOMAIN_NAME} cp /etc/hosts.new /etc/hosts
     done
     rm -f ./hosts_peer*
     ;;

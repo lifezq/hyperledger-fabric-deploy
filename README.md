@@ -45,13 +45,12 @@ Usage:
   cli.sh [options] <host>      <add|del|ls>          [host:ip]   "Operate cli host map, including add/del/ls"
 Options:
     -b <endorser> - specify an endorsement strategy (defaults to "OR (Org{1,2,3}MSP)")
-    -c <channel name> - channel name to use (defaults to "mychannel")
+    -c <channel name> - channel name to use (defaults to "test")
     -t <timeout> - CLI timeout duration in seconds (defaults to 10)
     -d <delay> - delay duration in seconds (defaults to 3)
-    -f <docker-compose-file> - specify which docker-compose file use (defaults to docker-compose-cli.yaml)
     -s <dbtype> - the database backend to use: goleveldb or couchdb (default) 
     -l <language> - the chaincode language: golang (default) or node
-    -m <chaincode name> - the chaincode name: mycc (default)
+    -m <chaincode name> - the chaincode name: testcc (default)
     -r <chaincode version> - the chaincode version: 1.0 (default)
     -p <chaincode path> - the chaincode path: github.com/chaincode/chaincode_example02/go/ (default)
     -g <chaincode init args> - the chaincode init args: {"Args":["init","a","100","b","200"]} (default)

@@ -83,6 +83,9 @@ BASE_PEER_OUT_FILE="base/docker-compose-peer.yaml"
 ORDERER_BASE_OUT_FILE="base/orderer-base.yaml"
 PEER_OUT_FILE="docker-compose-peer.yaml"
 COUCH_OUT_FILE="docker-compose-couch.yaml"
+ORDERER_OUT_FILE="docker-compose-orderer.yaml"
+KAFKA_OUT_FILE="docker-compose-kafka.yaml"
+CLI_OUT_FILE="docker-compose-cli.yaml"
 GENERATE_LOCK_FILE="generate.lock"
 
 if [ $1"x" == "clearx" -o $1"x" == "cleanx" ];then
@@ -118,11 +121,11 @@ if [ $PER_ORG_NODE_COUNT -gt 10 ];then
 fi
 
 
-which configtxgen
+which configtxgen 2>/dev/null
 res0=$?
-which cryptogen
+which cryptogen 2>/dev/null
 res1=$?
-which fabric-ca-client
+which fabric-ca-client 2>/dev/null
 res2=$?
 if [ "$res0" -ne 0 -o "$res1" -ne 0 -o "$res2" -ne 0 ]; then
   tar -zxvf bin.tar.gz
@@ -163,7 +166,7 @@ Organizations:
         ID: OrdererMSP
 
         # MSPDir is the filesystem path which contains the MSP configuration
-        MSPDir: crypto-config/ordererOrganizations/test.com/msp
+        MSPDir: crypto-config/ordererOrganizations/${DOMAIN_NAME}/msp
 
         # Policies defines the set of policies at this level of the config tree
         # For organization policies, their canonical path is usually
@@ -189,7 +192,7 @@ ORGS_TEMPLATE="
         # ID to load the MSP definition as
         ID: Org1MSP
 
-        MSPDir: crypto-config/peerOrganizations/org1.test.com/msp
+        MSPDir: crypto-config/peerOrganizations/org1.${DOMAIN_NAME}/msp
 
         # Policies defines the set of policies at this level of the config tree
         # For organization policies, their canonical path is usually
@@ -210,7 +213,7 @@ ORGS_TEMPLATE="
             # AnchorPeers defines the location of peers which can be used
             # for cross org gossip communication.  Note, this value is only
             # encoded in the genesis block in the Application section context
-            - Host: peer0.org1.test.com
+            - Host: peer0.org1.${DOMAIN_NAME}
               Port: 7051
 "
 
@@ -436,10 +439,10 @@ Profiles:
 
 ORGS_PTR_TEMPLATE="                    - *Org1
 "
-ORDERER_CONSENTERS_TEMPLATE="                - Host: orderer1.test.com
+ORDERER_CONSENTERS_TEMPLATE="                - Host: orderer1.${DOMAIN_NAME}
                   Port: 7050
-                  ClientTLSCert: crypto-config/ordererOrganizations/test.com/orderers/orderer1.test.com/tls/server.crt
-                  ServerTLSCert: crypto-config/ordererOrganizations/test.com/orderers/orderer1.test.com/tls/server.crt
+                  ClientTLSCert: crypto-config/ordererOrganizations/${DOMAIN_NAME}/orderers/orderer1.${DOMAIN_NAME}/tls/server.crt
+                  ServerTLSCert: crypto-config/ordererOrganizations/${DOMAIN_NAME}/orderers/orderer1.${DOMAIN_NAME}/tls/server.crt
 "
 
 
@@ -448,9 +451,9 @@ ORGS_COMPLETE=""
 ORDERER_PORT=8001
 ORG_PORT=7051
 ORGS_PTR=""
-ORDERER_ADDRESS="                - orderer1.test.com:7050
+ORDERER_ADDRESS="                - orderer1.${DOMAIN_NAME}:7050
 "
-ORDERER_TYPE_ADDRESS="        - orderer1.test.com:7050
+ORDERER_TYPE_ADDRESS="        - orderer1.${DOMAIN_NAME}:7050
 "
 ORDERER_ADDRESSES=""
 ORDERER_TYPE_ADDRESSES=""
@@ -458,10 +461,10 @@ ORDERER_KAFKA_BROKERS=""
 KAFKA_ZOOKEEPER_CONNECT=""
 ZOO_SERVERS=""
 KAFKA_PORT=8061
-KAFKA_BROKER_HOST="            - kafka1.test.com:9092
+KAFKA_BROKER_HOST="            - kafka1.${DOMAIN_NAME}:9092
 "
 KAFKA_BROKER_HOSTS=""
-KAFKA_BROKER_MODE_HOST="                - kafka1.test.com:9092
+KAFKA_BROKER_MODE_HOST="                - kafka1.${DOMAIN_NAME}:9092
 "
 KAFKA_BROKER_MODE_HOSTS=""
 KAFKA_BROKER_HOST_COMPLATE=""
@@ -499,7 +502,7 @@ do
     KAFKA_STORAGE=${KAFKA_BROKER_MODE_HOST//kafka1/kafka$i}
     # KAFKA_STORAGE=${KAFKA_STORAGE/8061/$KAFKA_PORT}
     KAFKA_BROKER_MODE_HOST_COMPLATE+="$KAFKA_STORAGE"
-    ORDERER_KAFKA_BROKERS+="kafka$i.test.com:9092,"
+    ORDERER_KAFKA_BROKERS+="kafka$i.${DOMAIN_NAME}:9092,"
     let KAFKA_PORT+=1
 done
 
@@ -642,7 +645,7 @@ OrdererOrgs:
   # Orderer
   # ---------------------------------------------------------------------------
   - Name: Orderer
-    Domain: test.com
+    Domain: ${DOMAIN_NAME}
     # ---------------------------------------------------------------------------
     # \"Specs\" - See PeerOrgs below for complete description
     # ---------------------------------------------------------------------------
@@ -659,7 +662,7 @@ PeerOrgs:
   # Org1
   # ---------------------------------------------------------------------------
   - Name: Org1
-    Domain: org1.test.com
+    Domain: org1.${DOMAIN_NAME}
     EnableNodeOUs: true
     # ---------------------------------------------------------------------------
     # \"Specs\"
@@ -678,8 +681,8 @@ PeerOrgs:
     #                 Org.Domain, respectively.
     # ---------------------------------------------------------------------------
     # Specs:
-    #   - Hostname: foo # implicitly \"foo.org1.test.com\"
-    #     CommonName: foo27.org5.test.com # overrides Hostname-based FQDN set above
+    #   - Hostname: foo # implicitly \"foo.org1.${DOMAIN_NAME}\"
+    #     CommonName: foo27.org5.${DOMAIN_NAME} # overrides Hostname-based FQDN set above
     #   - Hostname: bar
     #   - Hostname: baz
     # ---------------------------------------------------------------------------
@@ -710,7 +713,7 @@ PeerOrgs:
   # ---------------------------------------------------------------------------" >>$CRYPTO_OUT_FILE
   ORG_SPEC_TEMPLATE="
   - Name: Org1
-    Domain: org1.test.com
+    Domain: org1.${DOMAIN_NAME}
     EnableNodeOUs: true
     Template:
       Count: 2
@@ -740,25 +743,25 @@ version: '2'
 
 services:" >$BASE_PEER_OUT_FILE
 PEER_TEMPLATE="
-  peer0.org1.test.com:
-    container_name: peer0.org1.test.com
+  peer0.org1.${DOMAIN_NAME}:
+    container_name: peer0.org1.${DOMAIN_NAME}
     extends:
       file: peer-base.yaml
       service: peer-base
     environment:
-      - CORE_PEER_ID=peer0.org1.test.com
-      - CORE_PEER_ADDRESS=peer0.org1.test.com:7051
+      - CORE_PEER_ID=peer0.org1.${DOMAIN_NAME}
+      - CORE_PEER_ADDRESS=peer0.org1.${DOMAIN_NAME}:7051
       - CORE_PEER_LISTENADDRESS=0.0.0.0:7051
-      - CORE_PEER_CHAINCODEADDRESS=peer0.org1.test.com:7052
+      - CORE_PEER_CHAINCODEADDRESS=peer0.org1.${DOMAIN_NAME}:7052
       - CORE_PEER_CHAINCODELISTENADDRESS=0.0.0.0:7052
-      - CORE_PEER_GOSSIP_BOOTSTRAP=peer0.org1.test.com:7051
-      - CORE_PEER_GOSSIP_EXTERNALENDPOINT=peer0.org1.test.com:7051
+      - CORE_PEER_GOSSIP_BOOTSTRAP=peer0.org1.${DOMAIN_NAME}:7051
+      - CORE_PEER_GOSSIP_EXTERNALENDPOINT=peer0.org1.${DOMAIN_NAME}:7051
       - CORE_PEER_LOCALMSPID=Org1MSP
     volumes:
         - /var/run/:/host/var/run/
-        - ../crypto-config/peerOrganizations/org1.test.com/peers/peer0.org1.test.com/msp:/etc/hyperledger/fabric/msp
-        - ../crypto-config/peerOrganizations/org1.test.com/peers/peer0.org1.test.com/tls:/etc/hyperledger/fabric/tls
-        - ../chaincode/peer/peer0.org1.test.com:/var/hyperledger/production
+        - ../crypto-config/peerOrganizations/org1.${DOMAIN_NAME}/peers/peer0.org1.${DOMAIN_NAME}/msp:/etc/hyperledger/fabric/msp
+        - ../crypto-config/peerOrganizations/org1.${DOMAIN_NAME}/peers/peer0.org1.${DOMAIN_NAME}/tls:/etc/hyperledger/fabric/tls
+        - ../chaincode/peer/peer0.org1.${DOMAIN_NAME}:/var/hyperledger/production
     ports:
       - 7051:7051
       - 7253:7053"
@@ -768,14 +771,14 @@ PEER_EVENT_PORT=7253
 PEER_CHAINPORT=7152
 PEER_COMPLATE=""
 PEER_VOLUME_HOST="
-  peer0.org1.test.com:"
+  peer0.org1.${DOMAIN_NAME}:"
 PEER_VOLUME_COMPLATE=""
 PEER_SERVICE_TEMPLATE="
-  peer0.org1.test.com:
-    container_name: peer0.org1.test.com
+  peer0.org1.${DOMAIN_NAME}:
+    container_name: peer0.org1.${DOMAIN_NAME}
     extends:
       file:  base/docker-compose-peer.yaml
-      service: peer0.org1.test.com
+      service: peer0.org1.${DOMAIN_NAME}
     networks:
       - byfn"
 PEER_SERVICE_COMPLATE=""
@@ -799,7 +802,7 @@ COUCH_SERVICE_TEMPLATE="
     networks:
       - byfn
 
-  peer0.org1.test.com:
+  peer0.org1.${DOMAIN_NAME}:
     environment:
       - CORE_LEDGER_STATE_STATEDATABASE=CouchDB
       - CORE_LEDGER_STATE_COUCHDBCONFIG_COUCHDBADDRESS=couchdb0:5984
@@ -878,6 +881,220 @@ services:" >>$COUCH_OUT_FILE
 fi
 
 
+# ---------------------------------------------------------------------------
+# "docker-compose-orderer.yaml" - generate
+# ---------------------------------------------------------------------------
+
+echo -e "
+# This file is automatically generated by the script. Do not change it!
+#
+#
+
+version: '2'
+
+volumes:
+  orderer1.${DOMAIN_NAME}:
+
+networks:
+  byfn:
+
+services:
+  orderer1.${DOMAIN_NAME}:
+    extends:
+      file:   base/docker-compose-orderer.yaml
+      service: orderer1.${DOMAIN_NAME}
+    container_name: orderer1.${DOMAIN_NAME}
+    networks:
+      - byfn
+    extra_hosts:" >$ORDERER_OUT_FILE
+
+KAFKA_EXTRA_HOST="      - \"kafka1.${DOMAIN_NAME}:127.0.0.1\"
+"
+ZOOKEEPER_EXTRA_HOST="      - \"zookeeper1.${DOMAIN_NAME}:127.0.0.1\"
+"
+ORDERER_EXTRA_HOST="      - \"orderer1.${DOMAIN_NAME}:127.0.0.1\"
+"
+KAFKA_COMPLETE=""
+ZOOKEEPER_COMPLETE=""
+ORDERER_COMPLETE=""
+for((i=1;i<=$KAFKA_NUMBER;i++));
+do
+    KAFKA_STORAGE=${KAFKA_EXTRA_HOST//kafka1/kafka$i}
+    KAFKA_COMPLETE+="$KAFKA_STORAGE"
+    ZOOKEEPER_STORAGE=${ZOOKEEPER_EXTRA_HOST//zookeeper1/zookeeper$i}
+    ZOOKEEPER_COMPLETE+="$ZOOKEEPER_STORAGE"
+done
+
+for((i=1;i<=$ORDERER_NUMBER;i++));
+do
+    ORDERER_STORAGE=${ORDERER_EXTRA_HOST//orderer1/orderer$i}
+    ORDERER_COMPLETE+="$ORDERER_STORAGE"
+done
+echo -e "$KAFKA_COMPLETE">>$ORDERER_OUT_FILE
+echo -e "$ORDERER_COMPLETE">>$ORDERER_OUT_FILE
+
+# ---------------------------------------------------------------------------
+# "base/docker-compose-orderer.yaml" - generate
+# ---------------------------------------------------------------------------
+echo -e "
+# Copyright IBM Corp. All Rights Reserved.
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+version: '2'
+
+services:
+
+  orderer1.${DOMAIN_NAME}:
+    container_name: orderer1.${DOMAIN_NAME}
+    extends:
+      file: orderer-base.yaml
+      service: orderer-base
+    volumes:
+        - ../channel-artifacts/genesis.block:/var/hyperledger/orderer/orderer.genesis.block
+        - ../crypto-config/ordererOrganizations/${DOMAIN_NAME}/orderers/orderer1.${DOMAIN_NAME}/msp:/var/hyperledger/orderer/msp
+        - ../crypto-config/ordererOrganizations/${DOMAIN_NAME}/orderers/orderer1.${DOMAIN_NAME}/tls/:/var/hyperledger/orderer/tls
+        - ../chaincode/orderer/orderer1.${DOMAIN_NAME}:/var/hyperledger
+    ports:
+      - 8001:7050
+      - 7050:7050
+">base/docker-compose-orderer.yaml
+
+# ---------------------------------------------------------------------------
+# "docker-compose-kafka.yaml" - generate
+# ---------------------------------------------------------------------------
+
+echo -e "
+# This file is automatically generated by the script. Do not change it!
+#
+#
+
+
+# NOTE: This is not the way a Kafka cluster would normally be deployed in production, as it is not secure
+# and is not fault tolerant. This example is a toy deployment that is only meant to exercise the Kafka code path
+# of the ordering service.
+
+version: '2'
+
+volumes:
+  zookeeper1.${DOMAIN_NAME}:
+  kafka1.${DOMAIN_NAME}:
+
+networks:
+  byfn:
+
+services:
+  zookeeper1.${DOMAIN_NAME}:
+    container_name: zookeeper1.${DOMAIN_NAME}
+    hostname: zookeeper1.${DOMAIN_NAME}
+    image: hyperledger/fabric-zookeeper:$IMAGE_TAG_KAFKA
+    restart: always
+    environment:
+      - ZOO_MY_ID=1
+      - ZOOKEEPER_TICK_TIME:2000
+      - quorumListenOnAllIPs=true
+      - ZOO_SERVERS=server.1=zookeeper1.${DOMAIN_NAME}:2888:3888
+    networks:
+      - byfn
+    volumes:
+      - ./chaincode/zookeeper/zookeeper1:/data/
+    ports:
+      - 2181:2181
+      - 2888:2888
+      - 3888:3888
+    extra_hosts:">$KAFKA_OUT_FILE
+echo -e "$ZOOKEEPER_COMPLETE">>$KAFKA_OUT_FILE
+echo -e "
+  kafka1.${DOMAIN_NAME}:
+    container_name: kafka1.${DOMAIN_NAME}
+    hostname: kafka1.${DOMAIN_NAME}
+    image: hyperledger/fabric-kafka:$IMAGE_TAG_KAFKA
+    restart: always
+    depends_on:
+      - zookeeper1.${DOMAIN_NAME}
+    environment:
+      - KAFKA_BROKER_ID=1
+      - KAFKA_ZOOKEEPER_CONNECT=zookeeper1.${DOMAIN_NAME}:2181
+      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka1.${DOMAIN_NAME}:9092
+      - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
+      - KAFKA_MESSAGE_MAX_BYTES=1048576 # 1 * 1024 * 1024 B
+      - KAFKA_REPLICA_FETCH_MAX_BYTES=1048576 # 1 * 1024 * 1024 B
+      - KAFKA_UNCLEAN_LEADER_ELECTION_ENABLE=false
+      - KAFKA_LOG_RETENTION_MS=-1
+      - KAFKA_MIN_INSYNC_REPLICAS=1
+      - KAFKA_DEFAULT_REPLICATION_FACTOR=1
+    networks:
+      - byfn
+    volumes:
+      - ./chaincode/kafka/kafka1:/tmp/kafka-logs/
+    ports:
+      - 9092:9092
+    extra_hosts:">>$KAFKA_OUT_FILE
+echo -e "$ZOOKEEPER_COMPLETE">>$KAFKA_OUT_FILE
+echo -e "$KAFKA_COMPLETE">>$KAFKA_OUT_FILE
+
+# ---------------------------------------------------------------------------
+# "docker-compose-cli.yaml" - generate
+# ---------------------------------------------------------------------------
+
+echo -e "
+# This file is automatically generated by the script. Do not change it!
+#
+#
+
+version: '2'
+
+volumes:
+  cli:
+
+networks:
+  byfn:
+
+services:
+  cli:
+    container_name: cli
+    image: hyperledger/fabric-tools:\$IMAGE_TAG
+    tty: true
+    stdin_open: true
+    environment:
+      - SYS_CHANNEL=\$SYS_CHANNEL
+      - GOPATH=/opt/gopath
+      - CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock
+      #- FABRIC_LOGGING_SPEC=DEBUG
+      - FABRIC_LOGGING_SPEC=INFO
+      - CORE_PEER_ID=cli
+      - DOMAIN_NAME=${DOMAIN_NAME}
+      - CORE_PEER_ADDRESS=peer0.org1.${DOMAIN_NAME}:7051
+      - CORE_PEER_LOCALMSPID=Org1MSP
+      - CORE_PEER_TLS_ENABLED=true
+      - FABRIC_CFG_PATH=/opt/gopath/src/github.com/hyperledger/fabric/peer
+      - CORE_PEER_TLS_CERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1.${DOMAIN_NAME}/peers/peer0.org1.${DOMAIN_NAME}/tls/server.crt
+      - CORE_PEER_TLS_KEY_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1.${DOMAIN_NAME}/peers/peer0.org1.${DOMAIN_NAME}/tls/server.key
+      - CORE_PEER_TLS_ROOTCERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1.${DOMAIN_NAME}/peers/peer0.org1.${DOMAIN_NAME}/tls/ca.crt
+      - CORE_PEER_MSPCONFIGPATH=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1.${DOMAIN_NAME}/users/Admin@org1.${DOMAIN_NAME}/msp
+    working_dir: /opt/gopath/src/github.com/hyperledger/fabric/peer
+    command: /bin/bash
+    volumes:
+        - /var/run/:/host/var/run/
+        - ./chaincode/:/opt/gopath/src/
+        - ./crypto-config:/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/
+        - ./scripts:/opt/gopath/src/github.com/hyperledger/fabric/peer/scripts/
+        - ./channel-artifacts:/opt/gopath/src/github.com/hyperledger/fabric/peer/channel-artifacts
+    networks:
+      - byfn
+    extra_hosts:
+">$CLI_OUT_FILE
+
+echo -e "
+NodeOUs:
+  Enable: true
+  ClientOUIdentifier:
+    Certificate: cacerts/ca.org1.${DOMAIN_NAME}-cert.pem
+    OrganizationalUnitIdentifier: client
+  PeerOUIdentifier:
+    Certificate: cacerts/ca.org1.${DOMAIN_NAME}-cert.pem
+    OrganizationalUnitIdentifier: peer">config.yaml
 
 function cagenerate() {
   
@@ -899,21 +1116,21 @@ function cagenerate() {
   done
   
 
-  fabric-ca-client register --id.name Admin@test.com --id.type client --id.affiliation "com.test" \
+  fabric-ca-client register --id.name Admin@${DOMAIN_NAME} --id.type client --id.affiliation "com.test" \
   --id.attrs '"hf.Registrar.Roles=client,orderer,peer,user","hf.Registrar.DelegateRoles=client,orderer,peer,user",hf.Registrar.Attributes=*,hf.GenCRL=true,hf.Revoker=true,hf.AffiliationMgr=true,hf.IntermediateCA=true,role=admin:ecert' \
   --id.secret=$CA_PASSWORD
 
-  mkdir -p test.com/users/Admin@test.com && cd "$_"
+  mkdir -p ${DOMAIN_NAME}/users/Admin@${DOMAIN_NAME} && cd "$_"
 
-  fabric-ca-client enroll -u http://Admin@test.com:$CA_PASSWORD@$CA_SERVER -M `pwd`/msp
-  fabric-ca-client enroll -d --enrollment.profile tls -u http://Admin@test.com:$CA_PASSWORD@$CA_SERVER -M `pwd`/tls
+  fabric-ca-client enroll -u http://Admin@${DOMAIN_NAME}:$CA_PASSWORD@$CA_SERVER -M `pwd`/msp
+  fabric-ca-client enroll -d --enrollment.profile tls -u http://Admin@${DOMAIN_NAME}:$CA_PASSWORD@$CA_SERVER -M `pwd`/tls
 
   mkdir -p msp/{admincerts,tlscacerts}
 
-  mv msp/signcerts/*.pem msp/signcerts/Admin@test.com-cert.pem
-  mv msp/cacerts/*.pem msp/cacerts/ca.test.com-cert.pem
+  mv msp/signcerts/*.pem msp/signcerts/Admin@${DOMAIN_NAME}-cert.pem
+  mv msp/cacerts/*.pem msp/cacerts/ca.${DOMAIN_NAME}-cert.pem
   cp msp/signcerts/*.pem msp/admincerts/
-  cp tls/tlscacerts/*.pem msp/tlscacerts/tlsca.test.com-cert.pem
+  cp tls/tlscacerts/*.pem msp/tlscacerts/tlsca.${DOMAIN_NAME}-cert.pem
 
   cp tls/tlscacerts/*.pem tls/ca.crt
   cp tls/signcerts/*.pem tls/client.crt
@@ -922,13 +1139,13 @@ function cagenerate() {
   rm -rf tls/{cacerts,tlscacerts,signcerts,keystore}
   cd $CA_DIR
 
-  mkdir -p test.com/{ca,tlsca}
-  mkdir -p test.com/msp/{admincerts,cacerts,tlscacerts}
-  cp test.com/users/Admin@test.com/msp/admincerts/*.pem test.com/msp/admincerts/
-  cp test.com/users/Admin@test.com/msp/cacerts/*.pem test.com/msp/cacerts/
-  cp test.com/users/Admin@test.com/msp/tlscacerts/*.pem test.com/msp/tlscacerts/
-  cp test.com/users/Admin@test.com/msp/cacerts/*.pem test.com/ca/
-  cp test.com/users/Admin@test.com/msp/tlscacerts/*.pem test.com/tlsca/
+  mkdir -p ${DOMAIN_NAME}/{ca,tlsca}
+  mkdir -p ${DOMAIN_NAME}/msp/{admincerts,cacerts,tlscacerts}
+  cp ${DOMAIN_NAME}/users/Admin@${DOMAIN_NAME}/msp/admincerts/*.pem ${DOMAIN_NAME}/msp/admincerts/
+  cp ${DOMAIN_NAME}/users/Admin@${DOMAIN_NAME}/msp/cacerts/*.pem ${DOMAIN_NAME}/msp/cacerts/
+  cp ${DOMAIN_NAME}/users/Admin@${DOMAIN_NAME}/msp/tlscacerts/*.pem ${DOMAIN_NAME}/msp/tlscacerts/
+  cp ${DOMAIN_NAME}/users/Admin@${DOMAIN_NAME}/msp/cacerts/*.pem ${DOMAIN_NAME}/ca/
+  cp ${DOMAIN_NAME}/users/Admin@${DOMAIN_NAME}/msp/tlscacerts/*.pem ${DOMAIN_NAME}/tlsca/
 
 
 # ORG 
@@ -937,21 +1154,21 @@ function cagenerate() {
   do
     cd $CA_DIR
 
-    fabric-ca-client register --id.name Admin@org$orgid.test.com --id.type client --id.affiliation "com.test.org$orgid" \
+    fabric-ca-client register --id.name Admin@org$orgid.${DOMAIN_NAME} --id.type client --id.affiliation "com.test.org$orgid" \
     --id.attrs '"hf.Registrar.Roles=client,orderer,peer,user","hf.Registrar.DelegateRoles=client,orderer,peer,user",hf.Registrar.Attributes=*,hf.GenCRL=true,hf.Revoker=true,hf.AffiliationMgr=true,hf.IntermediateCA=true,role=admin:ecert' \
     --id.secret=$CA_PASSWORD
 
-    mkdir -p org$orgid.test.com/users/Admin@org$orgid.test.com && cd "$_"
+    mkdir -p org$orgid.${DOMAIN_NAME}/users/Admin@org$orgid.${DOMAIN_NAME} && cd "$_"
 
-    fabric-ca-client enroll -u http://Admin@org$orgid.test.com:$CA_PASSWORD@$CA_SERVER -M `pwd`/msp
-    fabric-ca-client enroll -d --enrollment.profile tls -u http://Admin@org$orgid.test.com:$CA_PASSWORD@$CA_SERVER -M `pwd`/tls
+    fabric-ca-client enroll -u http://Admin@org$orgid.${DOMAIN_NAME}:$CA_PASSWORD@$CA_SERVER -M `pwd`/msp
+    fabric-ca-client enroll -d --enrollment.profile tls -u http://Admin@org$orgid.${DOMAIN_NAME}:$CA_PASSWORD@$CA_SERVER -M `pwd`/tls
 
     mkdir -p msp/{admincerts,tlscacerts}
 
-    mv msp/signcerts/*.pem msp/signcerts/Admin@org$orgid.test.com-cert.pem
-    mv msp/cacerts/*.pem msp/cacerts/ca.org$orgid.test.com-cert.pem
+    mv msp/signcerts/*.pem msp/signcerts/Admin@org$orgid.${DOMAIN_NAME}-cert.pem
+    mv msp/cacerts/*.pem msp/cacerts/ca.org$orgid.${DOMAIN_NAME}-cert.pem
     cp msp/signcerts/*.pem msp/admincerts/
-    cp tls/tlscacerts/*.pem msp/tlscacerts/tlsca.org$orgid.test.com-cert.pem
+    cp tls/tlscacerts/*.pem msp/tlscacerts/tlsca.org$orgid.${DOMAIN_NAME}-cert.pem
 
     cp tls/tlscacerts/*.pem tls/ca.crt
     cp tls/signcerts/*.pem tls/client.crt
@@ -961,13 +1178,13 @@ function cagenerate() {
 
     cd $CA_DIR
 
-    mkdir -p org$orgid.test.com/{ca,tlsca}
-    mkdir -p org$orgid.test.com/msp/{admincerts,cacerts,tlscacerts}
-    cp org$orgid.test.com/users/Admin@org$orgid.test.com/msp/admincerts/*.pem org$orgid.test.com/msp/admincerts/
-    cp org$orgid.test.com/users/Admin@org$orgid.test.com/msp/cacerts/*.pem org$orgid.test.com/msp/cacerts/
-    cp org$orgid.test.com/users/Admin@org$orgid.test.com/msp/tlscacerts/*.pem org$orgid.test.com/msp/tlscacerts/
-    cp org$orgid.test.com/users/Admin@org$orgid.test.com/msp/cacerts/*.pem org$orgid.test.com/ca/
-    cp org$orgid.test.com/users/Admin@org$orgid.test.com/msp/tlscacerts/*.pem org$orgid.test.com/tlsca/
+    mkdir -p org$orgid.${DOMAIN_NAME}/{ca,tlsca}
+    mkdir -p org$orgid.${DOMAIN_NAME}/msp/{admincerts,cacerts,tlscacerts}
+    cp org$orgid.${DOMAIN_NAME}/users/Admin@org$orgid.${DOMAIN_NAME}/msp/admincerts/*.pem org$orgid.${DOMAIN_NAME}/msp/admincerts/
+    cp org$orgid.${DOMAIN_NAME}/users/Admin@org$orgid.${DOMAIN_NAME}/msp/cacerts/*.pem org$orgid.${DOMAIN_NAME}/msp/cacerts/
+    cp org$orgid.${DOMAIN_NAME}/users/Admin@org$orgid.${DOMAIN_NAME}/msp/tlscacerts/*.pem org$orgid.${DOMAIN_NAME}/msp/tlscacerts/
+    cp org$orgid.${DOMAIN_NAME}/users/Admin@org$orgid.${DOMAIN_NAME}/msp/cacerts/*.pem org$orgid.${DOMAIN_NAME}/ca/
+    cp org$orgid.${DOMAIN_NAME}/users/Admin@org$orgid.${DOMAIN_NAME}/msp/tlscacerts/*.pem org$orgid.${DOMAIN_NAME}/tlsca/
 
   done
 
@@ -977,24 +1194,24 @@ function cagenerate() {
     do
  
     cd $CA_DIR
-    fabric-ca-client enroll -u http://Admin@test.com:$CA_PASSWORD@$CA_SERVER
+    fabric-ca-client enroll -u http://Admin@${DOMAIN_NAME}:$CA_PASSWORD@$CA_SERVER
 
-    fabric-ca-client register --id.name orderer$ordererid.test.com --id.type orderer --id.affiliation "com.test" \
+    fabric-ca-client register --id.name orderer$ordererid.${DOMAIN_NAME} --id.type orderer --id.affiliation "com.test" \
     --id.attrs '"hf.Registrar.Roles=orderer",ecert=true' \
     --id.secret=$CA_PASSWORD
 
-    mkdir -p test.com/orderers/orderer$ordererid.test.com && cd "$_"
+    mkdir -p ${DOMAIN_NAME}/orderers/orderer$ordererid.${DOMAIN_NAME} && cd "$_"
 
-    fabric-ca-client enroll -u http://orderer$ordererid.test.com:$CA_PASSWORD@$CA_SERVER --csr.cn orderer$ordererid.test.com --csr.hosts orderer$ordererid.test.com -M `pwd`/msp
-    fabric-ca-client enroll -d --enrollment.profile tls -u http://orderer$ordererid.test.com:$CA_PASSWORD@$CA_SERVER --csr.cn orderer$ordererid.test.com --csr.hosts orderer$ordererid.test.com -M `pwd`/tls
+    fabric-ca-client enroll -u http://orderer$ordererid.${DOMAIN_NAME}:$CA_PASSWORD@$CA_SERVER --csr.cn orderer$ordererid.${DOMAIN_NAME} --csr.hosts orderer$ordererid.${DOMAIN_NAME} -M `pwd`/msp
+    fabric-ca-client enroll -d --enrollment.profile tls -u http://orderer$ordererid.${DOMAIN_NAME}:$CA_PASSWORD@$CA_SERVER --csr.cn orderer$ordererid.${DOMAIN_NAME} --csr.hosts orderer$ordererid.${DOMAIN_NAME} -M `pwd`/tls
 
     mkdir msp/{admincerts,tlscacerts}
 
 
-    cp $CA_DIR/test.com/users/Admin@test.com/msp/admincerts/*.pem msp/admincerts/
-    cp $CA_DIR/test.com/users/Admin@test.com/msp/tlscacerts/*.pem msp/tlscacerts/
-    mv msp/cacerts/*.pem msp/cacerts/ca.test.com-cert.pem
-    mv msp/signcerts/*.pem msp/signcerts/orderer$ordererid.test.com-cert.pem
+    cp $CA_DIR/${DOMAIN_NAME}/users/Admin@${DOMAIN_NAME}/msp/admincerts/*.pem msp/admincerts/
+    cp $CA_DIR/${DOMAIN_NAME}/users/Admin@${DOMAIN_NAME}/msp/tlscacerts/*.pem msp/tlscacerts/
+    mv msp/cacerts/*.pem msp/cacerts/ca.${DOMAIN_NAME}-cert.pem
+    mv msp/signcerts/*.pem msp/signcerts/orderer$ordererid.${DOMAIN_NAME}-cert.pem
 
     cp tls/tlscacerts/*.pem tls/ca.crt
     cp tls/signcerts/*.pem tls/server.crt
@@ -1011,24 +1228,24 @@ function cagenerate() {
     for((peerid=0;peerid<$PER_ORG_NODE_COUNT;peerid++));
     do
       cd $CA_DIR
-      fabric-ca-client enroll -u http://Admin@test.com:$CA_PASSWORD@$CA_SERVER
+      fabric-ca-client enroll -u http://Admin@${DOMAIN_NAME}:$CA_PASSWORD@$CA_SERVER
 
-      fabric-ca-client register --id.name peer$peerid.org$orgid.test.com --id.type peer --id.affiliation "com.test.org$orgid" \
+      fabric-ca-client register --id.name peer$peerid.org$orgid.${DOMAIN_NAME} --id.type peer --id.affiliation "com.test.org$orgid" \
       --id.attrs '"hf.Registrar.Roles=peer",ecert=true' \
       --id.secret=$CA_PASSWORD
 
-      mkdir -p org$orgid.test.com/peers/peer$peerid.org$orgid.test.com && cd "$_"
+      mkdir -p org$orgid.${DOMAIN_NAME}/peers/peer$peerid.org$orgid.${DOMAIN_NAME} && cd "$_"
 
-      fabric-ca-client enroll -u http://peer$peerid.org$orgid.test.com:$CA_PASSWORD@$CA_SERVER --csr.cn peer$peerid.org$orgid.test.com --csr.hosts peer$peerid.org$orgid.test.com -M `pwd`/msp
-      fabric-ca-client enroll -d --enrollment.profile tls -u http://peer$peerid.org$orgid.test.com:$CA_PASSWORD@$CA_SERVER --csr.cn peer$peerid.org$orgid.test.com --csr.hosts peer$peerid.org$orgid.test.com -M `pwd`/tls
+      fabric-ca-client enroll -u http://peer$peerid.org$orgid.${DOMAIN_NAME}:$CA_PASSWORD@$CA_SERVER --csr.cn peer$peerid.org$orgid.${DOMAIN_NAME} --csr.hosts peer$peerid.org$orgid.${DOMAIN_NAME} -M `pwd`/msp
+      fabric-ca-client enroll -d --enrollment.profile tls -u http://peer$peerid.org$orgid.${DOMAIN_NAME}:$CA_PASSWORD@$CA_SERVER --csr.cn peer$peerid.org$orgid.${DOMAIN_NAME} --csr.hosts peer$peerid.org$orgid.${DOMAIN_NAME} -M `pwd`/tls
 
       mkdir msp/{admincerts,tlscacerts}
 
 
-      cp $CA_DIR/org$orgid.test.com/users/Admin@org$orgid.test.com/msp/admincerts/*.pem msp/admincerts/
-      cp $CA_DIR/org$orgid.test.com/users/Admin@org$orgid.test.com/msp/tlscacerts/*.pem msp/tlscacerts/
-      mv msp/cacerts/*.pem msp/cacerts/ca.org$orgid.test.com-cert.pem
-      mv msp/signcerts/*.pem msp/signcerts/peer$peerid.org$orgid.test.com-cert.pem
+      cp $CA_DIR/org$orgid.${DOMAIN_NAME}/users/Admin@org$orgid.${DOMAIN_NAME}/msp/admincerts/*.pem msp/admincerts/
+      cp $CA_DIR/org$orgid.${DOMAIN_NAME}/users/Admin@org$orgid.${DOMAIN_NAME}/msp/tlscacerts/*.pem msp/tlscacerts/
+      mv msp/cacerts/*.pem msp/cacerts/ca.org$orgid.${DOMAIN_NAME}-cert.pem
+      mv msp/signcerts/*.pem msp/signcerts/peer$peerid.org$orgid.${DOMAIN_NAME}-cert.pem
 
       cp tls/tlscacerts/*.pem tls/ca.crt
       cp tls/signcerts/*.pem tls/server.crt
@@ -1041,16 +1258,16 @@ function cagenerate() {
   cd $CA_DIR
   rm -rf crypto-config
   mkdir -p crypto-config/{ordererOrganizations,peerOrganizations}
-  mv test.com crypto-config/ordererOrganizations/
+  mv ${DOMAIN_NAME} crypto-config/ordererOrganizations/
   for((orgid=1;orgid<=$ORG_NUMBER;orgid++));
   do
     sed -i "s/org[0-9]\{1,10\}/org$orgid/g" ./config.yaml
-    cp config.yaml org$orgid.test.com/msp/
+    cp config.yaml org$orgid.${DOMAIN_NAME}/msp/
     for((peerid=0;peerid<$PER_ORG_NODE_COUNT;peerid++));
     do
-    cp config.yaml org$orgid.test.com/peers/peer$peerid.org$orgid.test.com/msp/
+    cp config.yaml org$orgid.${DOMAIN_NAME}/peers/peer$peerid.org$orgid.${DOMAIN_NAME}/msp/
     done
-    mv org$orgid.test.com crypto-config/peerOrganizations/
+    mv org$orgid.${DOMAIN_NAME} crypto-config/peerOrganizations/
   done
 
   rm -rf $CUR_DIR/crypto-config
@@ -1087,7 +1304,7 @@ function generateCerts() {
   echo "##########################################################"
 
   if [ -d "crypto-config" ]; then
-    rm -Rf crypto-config
+    rm -rf crypto-config
   fi
   set -x
   cryptogen generate --config=./crypto-config.yaml
