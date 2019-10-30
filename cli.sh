@@ -774,9 +774,9 @@ function node(){
     do
         sed -i "s/couchdb${i}[0-9]\{1,10\}/couchdb${i}$ORG_ID/g" $COUCH_DOCKER_FILE
     done
-    sed -i "s/org[0-9]\{1,10\}\.test/org$ORG_ID\.test/g" $COUCH_DOCKER_FILE
-    sed -i "s/org[0-9]\{1,10\}\.test/org$ORG_ID\.test/g" $PEER_DOCKER_FILE
-    sed -i "s/org[0-9]\{1,10\}\.test/org$ORG_ID\.test/g" $BASE_PEER_DOCKER_FILE
+    sed -i "s/org[0-9]\{1,10\}\.${DOMAIN_NAME}/org$ORG_ID\.${DOMAIN_NAME}/g" $COUCH_DOCKER_FILE
+    sed -i "s/org[0-9]\{1,10\}\.${DOMAIN_NAME}/org$ORG_ID\.${DOMAIN_NAME}/g" $PEER_DOCKER_FILE
+    sed -i "s/org[0-9]\{1,10\}\.${DOMAIN_NAME}/org$ORG_ID\.${DOMAIN_NAME}/g" $BASE_PEER_DOCKER_FILE
     sed -i "s/Org[0-9]\{1,10\}MSP/Org${ORG_ID}MSP/g" $BASE_PEER_DOCKER_FILE
     IMAGE_TAG=$IMAGETAG docker-compose -f $COUCH_DOCKER_FILE -f $PEER_DOCKER_FILE up -d
     sleep 2

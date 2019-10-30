@@ -134,6 +134,8 @@ fi
 cp bin/configtxgen-$IMAGETAG bin/configtxgen >&/dev/null
 cp bin/cryptogen-$IMAGETAG bin/cryptogen >&/dev/null
 
+CC=(${DOMAIN_NAME//./ })
+NAME_DOMAIN="${CC[1]}.${CC[0]}"
 
 # ---------------------------------------------------------------------------
 # "configtx.yaml" - generate
@@ -1108,15 +1110,15 @@ function cagenerate() {
   fabric-ca-client enroll -u http://$CA_ACCOUNT:$CA_PASSWORD@$CA_SERVER
   fabric-ca-client affiliation remove --force  com
   fabric-ca-client affiliation add com 
-  fabric-ca-client affiliation add com.test
+  fabric-ca-client affiliation add ${NAME_DOMAIN}
 
   for((i=1;i<=$ORG_NUMBER;i++));
   do
-    fabric-ca-client affiliation add com.test.org$i
+    fabric-ca-client affiliation add ${NAME_DOMAIN}.org$i
   done
   
 
-  fabric-ca-client register --id.name Admin@${DOMAIN_NAME} --id.type client --id.affiliation "com.test" \
+  fabric-ca-client register --id.name Admin@${DOMAIN_NAME} --id.type client --id.affiliation "${NAME_DOMAIN}" \
   --id.attrs '"hf.Registrar.Roles=client,orderer,peer,user","hf.Registrar.DelegateRoles=client,orderer,peer,user",hf.Registrar.Attributes=*,hf.GenCRL=true,hf.Revoker=true,hf.AffiliationMgr=true,hf.IntermediateCA=true,role=admin:ecert' \
   --id.secret=$CA_PASSWORD
 
@@ -1154,7 +1156,7 @@ function cagenerate() {
   do
     cd $CA_DIR
 
-    fabric-ca-client register --id.name Admin@org$orgid.${DOMAIN_NAME} --id.type client --id.affiliation "com.test.org$orgid" \
+    fabric-ca-client register --id.name Admin@org$orgid.${DOMAIN_NAME} --id.type client --id.affiliation "${NAME_DOMAIN}.org$orgid" \
     --id.attrs '"hf.Registrar.Roles=client,orderer,peer,user","hf.Registrar.DelegateRoles=client,orderer,peer,user",hf.Registrar.Attributes=*,hf.GenCRL=true,hf.Revoker=true,hf.AffiliationMgr=true,hf.IntermediateCA=true,role=admin:ecert' \
     --id.secret=$CA_PASSWORD
 
@@ -1196,7 +1198,7 @@ function cagenerate() {
     cd $CA_DIR
     fabric-ca-client enroll -u http://Admin@${DOMAIN_NAME}:$CA_PASSWORD@$CA_SERVER
 
-    fabric-ca-client register --id.name orderer$ordererid.${DOMAIN_NAME} --id.type orderer --id.affiliation "com.test" \
+    fabric-ca-client register --id.name orderer$ordererid.${DOMAIN_NAME} --id.type orderer --id.affiliation "${NAME_DOMAIN}" \
     --id.attrs '"hf.Registrar.Roles=orderer",ecert=true' \
     --id.secret=$CA_PASSWORD
 
@@ -1230,7 +1232,7 @@ function cagenerate() {
       cd $CA_DIR
       fabric-ca-client enroll -u http://Admin@${DOMAIN_NAME}:$CA_PASSWORD@$CA_SERVER
 
-      fabric-ca-client register --id.name peer$peerid.org$orgid.${DOMAIN_NAME} --id.type peer --id.affiliation "com.test.org$orgid" \
+      fabric-ca-client register --id.name peer$peerid.org$orgid.${DOMAIN_NAME} --id.type peer --id.affiliation "${NAME_DOMAIN}.org$orgid" \
       --id.attrs '"hf.Registrar.Roles=peer",ecert=true' \
       --id.secret=$CA_PASSWORD
 
