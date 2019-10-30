@@ -1334,6 +1334,7 @@ function generateChannelArtifacts() {
   # Note: For some unknown reason (at least for now) the block file can't be
   # named orderer.genesis.block or the orderer will fail to launch!
   echo "CONSENSUS_TYPE="$CONSENSUS_TYPE
+  mkdir channel-artifacts
   set -x
   if [ "$CONSENSUS_TYPE" == "solo" ]; then
     configtxgen -profile CustomOrgsOrdererGenesis -channelID $SYS_CHANNEL -outputBlock ./channel-artifacts/genesis.block
