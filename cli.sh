@@ -61,16 +61,10 @@ CLI_DELAY=1
 SYS_CHANNEL="test-sys-channel"
 # channel name defaults to "test"
 CHANNEL_NAME="test"
-#
-COMPOSE_FILE_COUCH=docker-compose-couch.yaml
-# org3 docker compose file
-COMPOSE_FILE_ORG3=docker-compose-org3.yaml
 # kafka and zookeeper compose file
 COMPOSE_FILE_KAFKA=docker-compose-kafka.yaml
 # two additional etcd/raft orderers
 COMPOSE_FILE_RAFT2=docker-compose-etcdraft2.yaml
-# certificate authorities compose file
-COMPOSE_FILE_CA=docker-compose-ca.yaml
 # use golang as the default language for chaincode
 LANGUAGE=golang
 # default chain name set
