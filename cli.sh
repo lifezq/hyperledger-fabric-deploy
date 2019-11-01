@@ -191,7 +191,7 @@ function fabric(){
 
   case "$DO" in
   init)
-    read -p "input 3 numbers are respectively the quantity of kafka,orderer and node eg(3 3 3): " init_numbers
+    read -p "input 2 numbers are respectively the quantity of orderer and node eg(1 1): " init_numbers
 		typeset -l is_ca
 		read -p "input is use ca issue node certificate: false (default) : " is_ca
 		if [ $is_ca"x" == "truex" ];then
@@ -203,32 +203,28 @@ function fabric(){
 		fi
     ;;
   install)
-    read -p "input install kafka host ip address eg(ip1 ip2): " kafka_ip
 		read -p "input install orderer host ip address eg(ip1 ip2): " orderer_ip
 		read -p "input install node host ip address eg(ip1 ip2): " node_ip
     source ".env"
 		COMPOSE_FILE_KAFKA=docker-compose-kafka.yaml
 		COMPOSE_FILE_ORDERER=docker-compose-orderer.yaml
-		kid=1
-		for ip in $kafka_ip;
-		do
-			sed -i "/      - \"zookeeper$kid.${DOMAIN_NAME}/d" $COMPOSE_FILE_KAFKA
-			sed -i "/      - \"kafka$kid.${DOMAIN_NAME}/d" $COMPOSE_FILE_KAFKA
-			sed -i "/      - \"kafka$kid.${DOMAIN_NAME}/d" $COMPOSE_FILE_ORDERER
-			sed -i "39a\      - \"zookeeper$kid.${DOMAIN_NAME}:$ip\"" $COMPOSE_FILE_KAFKA
-			echo "      - \"zookeeper$kid.${DOMAIN_NAME}:$ip\"">>$COMPOSE_FILE_KAFKA
-			echo "      - \"kafka$kid.${DOMAIN_NAME}:$ip\"">>$COMPOSE_FILE_KAFKA
-			echo "      - \"kafka$kid.${DOMAIN_NAME}:$ip\"">>$COMPOSE_FILE_ORDERER
-			set -x
-			./cli.sh host add zookeeper$kid.${DOMAIN_NAME}:$ip false >&/dev/null
-			./cli.sh host add kafka$kid.${DOMAIN_NAME}:$ip false >&/dev/null
-			set +x
-			let kid+=1
-		done
 
 		kid=1
 		for ip in $orderer_ip;
 		do
+      if [ $CONSENSUS_TYPE == "kafka" ];then
+        sed -i "/      - \"zookeeper$kid.${DOMAIN_NAME}/d" $COMPOSE_FILE_KAFKA
+			  sed -i "/      - \"kafka$kid.${DOMAIN_NAME}/d" $COMPOSE_FILE_KAFKA
+			  sed -i "/      - \"kafka$kid.${DOMAIN_NAME}/d" $COMPOSE_FILE_ORDERER
+			  sed -i "39a\      - \"zookeeper$kid.${DOMAIN_NAME}:$ip\"" $COMPOSE_FILE_KAFKA
+			  echo "      - \"zookeeper$kid.${DOMAIN_NAME}:$ip\"">>$COMPOSE_FILE_KAFKA
+			  echo "      - \"kafka$kid.${DOMAIN_NAME}:$ip\"">>$COMPOSE_FILE_KAFKA
+			  echo "      - \"kafka$kid.${DOMAIN_NAME}:$ip\"">>$COMPOSE_FILE_ORDERER
+			  set -x
+			  ./cli.sh host add zookeeper$kid.${DOMAIN_NAME}:$ip false >&/dev/null
+			  ./cli.sh host add kafka$kid.${DOMAIN_NAME}:$ip false >&/dev/null
+			  set +x
+      fi
 			sed -i "/      - \"orderer$kid.${DOMAIN_NAME}/d" $COMPOSE_FILE_ORDERER
 			echo "      - \"orderer$kid.${DOMAIN_NAME}:$ip\"">>$COMPOSE_FILE_ORDERER
 			set -x
@@ -250,15 +246,11 @@ function fabric(){
 		done
 
 		kid=1
-		for ip in $kafka_ip;
-		do
-			./cli.sh -u root@$ip kafka up $kid
-			let kid+=1
-		done
-
-		kid=1
 		for ip in $orderer_ip;
 		do
+      if [ $CONSENSUS_TYPE == "kafka" ];then
+        ./cli.sh -u root@$ip kafka up $kid
+      fi
 			./cli.sh -u root@$ip orderer up $kid
 			let kid+=1
 		done
@@ -270,11 +262,10 @@ function fabric(){
 			let kid+=1
 		done
 
-		echo "kafka_ip=\"$kafka_ip\"">.fabric_install.lock
 		echo "orderer_ip=\"$orderer_ip\"">>.fabric_install.lock
 		echo "node_ip=\"$node_ip\"">>.fabric_install.lock
 
-		echo "Wait 18 seconds for kafka cluster up..."
+		echo "Wait 18 seconds for cluster up..."
 		sleep 18
 
     echo "Next will install the test chaincode"
@@ -362,16 +353,13 @@ function fabric(){
 			echo "cannot uninstall, need to remove manually"
 			exit 1
 		fi
-		kid=1
-		for ip in $kafka_ip;
-		do
-			./cli.sh -u root@$ip kafka down $kid
-			let kid+=1
-		done
-
+	
 		kid=1
 		for ip in $orderer_ip;
 		do
+      if [ $CONSENSUS_TYPE == "kafka" ];then
+        ./cli.sh -u root@$ip kafka down $kid
+      fi
 			./cli.sh -u root@$ip orderer down $kid
 			let kid+=1
 		done
@@ -392,17 +380,15 @@ function fabric(){
 			echo "cannot uninstall, need to remove manually"
 			exit 1
 		fi
-		kid=1
-		for ip in $kafka_ip;
-		do
-			./cli.sh -u root@$ip kafka down $kid
-      ssh root@$ip "export PATH=~/$APP_NAME/docker:\$PATH;docker ps -a|awk '{print \$1}'|xargs docker stop;docker ps -a|awk '{print \$1}'|xargs docker rm -f;docker volume ls|awk '{print \$2}'|xargs docker volume rm -f"
-			let kid+=1
-		done
 
 		kid=1
 		for ip in $orderer_ip;
 		do
+      if [ $CONSENSUS_TYPE == "kafka" ];then
+        ./cli.sh -u root@$ip kafka down $kid
+        ssh root@$ip "export PATH=~/$APP_NAME/docker:\$PATH;docker ps -a|awk '{print \$1}'|xargs docker stop;docker ps -a|awk '{print \$1}'|xargs docker rm -f;docker volume ls|awk '{print \$2}'|xargs docker volume rm -f"
+      fi
+
 			./cli.sh -u root@$ip orderer down $kid
       ssh root@$ip "export PATH=~/$APP_NAME/docker:\$PATH;docker ps -a|awk '{print \$1}'|xargs docker stop;docker ps -a|awk '{print \$1}'|xargs docker rm -f;docker volume ls|awk '{print \$2}'|xargs docker volume rm -f"
 			let kid+=1
@@ -416,13 +402,12 @@ function fabric(){
 			let kid+=1
 		done
 
-    for ip in $kafka_ip;
-		do
-      ssh root@$ip "ps -ef | grep dockerd|grep -v grep|awk '{print \$2}'>.dpid;cat .dpid|xargs kill -9>&/dev/null;rm -rf .dpid ~/$APP_NAME"
-		done
-
 		for ip in $orderer_ip;
 		do
+      if [ $CONSENSUS_TYPE == "kafka" ];then
+        ssh root@$ip "ps -ef | grep dockerd|grep -v grep|awk '{print \$2}'>.dpid;cat .dpid|xargs kill -9>&/dev/null;rm -rf .dpid ~/$APP_NAME"
+      fi
+
 			ssh root@$ip "ps -ef | grep dockerd|grep -v grep|awk '{print \$2}'>.dpid;cat .dpid|xargs kill -9>&/dev/null;rm -rf .dpid ~/$APP_NAME"
 		done
 
@@ -640,7 +625,7 @@ function orderer(){
         done
 
         KAFKA_PORT=8061
-        for((i=1;i<=$KAFKA_NUMBER;i++));
+        for((i=1;i<=$ORDERER_ID;i++));
         do
             ORDERER_KAFKA_BROKERS+="kafka$i.${DOMAIN_NAME}:$KAFKA_PORT,"
             let KAFKA_PORT+=1
