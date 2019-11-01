@@ -5,7 +5,7 @@ fabric安装命令行工具，可动态自定义安装分布式fabric系统至�
 #### 全自动fabric分布式安装
 ```
 [root@localhost fabric-deploy]# ./cli.sh fabric init
-input 3 numbers are respectively the quantity of kafka,orderer and node eg(3 3 3): 3 3 3
+input 2 numbers are respectively the quantity of orderer and node eg(1 1): 3 3
 input is use ca issue node certificate: false (default) : true
 input ca server address (host:port) : localhost:7054
 input ca server account (user:pass) : admin:123123
@@ -14,7 +14,6 @@ Continue? [Y/n] y
 proceeding ...
 
 [root@localhost fabric-deploy]# ./cli.sh fabric install
-input install kafka host ip address eg(ip1 ip2): 192.168.56.106 192.168.56.105 192.168.56.104
 input install orderer host ip address eg(ip1 ip2): 192.168.56.106 192.168.56.105 192.168.56.104
 input install node host ip address eg(ip1 ip2): 192.168.56.101
 + ./cli.sh host add zookeeper1.test.com:192.168.56.106
