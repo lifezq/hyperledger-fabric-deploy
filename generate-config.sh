@@ -327,7 +327,7 @@ Orderer: &OrdererDefaults
 
 CAPABILITIES_TEMPLATE_2="
     # Batch Timeout: The amount of time to wait before creating a batch
-    BatchTimeout: 2s
+    BatchTimeout: $BATCH_TIMEOUT
 
     # Batch Size: Controls the number of messages batched into a block
     BatchSize:

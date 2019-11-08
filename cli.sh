@@ -386,11 +386,11 @@ function fabric(){
 		do
       if [ $CONSENSUS_TYPE == "kafka" ];then
         ./cli.sh -u root@$ip kafka down $kid
-        ssh root@$ip "export PATH=~/$APP_NAME/docker:\$PATH;docker ps -a|awk '{print \$1}'|xargs docker stop;docker ps -a|awk '{print \$1}'|xargs docker rm -f;docker volume ls|awk '{print \$2}'|xargs docker volume rm -f"
+        ssh root@$ip "export PATH=~/$APP_NAME/docker:\$PATH;docker ps -a|awk '{print \$1}'|xargs docker stop;docker ps -a|awk '{print \$1}'|xargs docker rm -f;docker volume ls|awk '{print \$2}'|xargs docker volume rm -f;docker images | grep org$ORG_ID |awk '{print \$3}'|xargs docker rmi -f"
       fi
 
 			./cli.sh -u root@$ip orderer down $kid
-      ssh root@$ip "export PATH=~/$APP_NAME/docker:\$PATH;docker ps -a|awk '{print \$1}'|xargs docker stop;docker ps -a|awk '{print \$1}'|xargs docker rm -f;docker volume ls|awk '{print \$2}'|xargs docker volume rm -f"
+      ssh root@$ip "export PATH=~/$APP_NAME/docker:\$PATH;docker ps -a|awk '{print \$1}'|xargs docker stop;docker ps -a|awk '{print \$1}'|xargs docker rm -f;docker volume ls|awk '{print \$2}'|xargs docker volume rm -f;docker images | grep org$ORG_ID |awk '{print \$3}'|xargs docker rmi -f"
 			let kid+=1
 		done
 
@@ -398,7 +398,7 @@ function fabric(){
 		for ip in $node_ip;
 		do
 			./cli.sh -u root@$ip node down $kid
-      ssh root@$ip "export PATH=~/$APP_NAME/docker:\$PATH;docker ps -a|awk '{print \$1}'|xargs docker stop;docker ps -a|awk '{print \$1}'|xargs docker rm -f;docker volume ls|awk '{print \$2}'|xargs docker volume rm -f"
+      ssh root@$ip "export PATH=~/$APP_NAME/docker:\$PATH;docker ps -a|awk '{print \$1}'|xargs docker stop;docker ps -a|awk '{print \$1}'|xargs docker rm -f;docker volume ls|awk '{print \$2}'|xargs docker volume rm -f;docker images | grep org$ORG_ID |awk '{print \$3}'|xargs docker rmi -f"
 			let kid+=1
 		done
 
@@ -823,6 +823,9 @@ function node(){
             docker volume ls|grep couchdb${i}$ORG_ID|awk '{print $2}'|xargs docker volume rm -f >&/dev/null
         fi
     done
+
+    docker images | grep org$ORG_ID |awk '{print $3}'|xargs docker rmi -f
+
     rm -rf chaincode/peer/*org$ORG_ID.${DOMAIN_NAME}
     ;;
   reload)
